@@ -1,29 +1,43 @@
-from django.contrib.auth.models import User
-from django.contrib.auth import authenticate, login
 # Create your views here.
+from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
-from .serializers import UserSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.authentication import SessionAuthentication, BasicAuthentication
+from .serializers import CadastroSerializer, LoginSerializer
+from django.contrib.auth.models import User
+from rest_framework.authtoken.models import Token
 
-class UserCreateView(APIView): 
+
+
+class CadastroView(APIView): 
 
     def post(self, request):
-        serializer = UserSerializer(data=request.data)
+        serializer = CadastroSerializer(data=request.data)
         if serializer.is_valid():
-           user = serializer.save()
+           serializer.save()
            return Response(serializer.data, status=status.HTTP_201_CREATED)
         
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-def login_user(request):
-    username = request.POST['username']
-    password = request.POST['possword']
-    user = authenticate(username=username, password=password)
+
+class LoginAPIView(APIView):
+    serializer_class = LoginSerializer
+
+    def post(self, request):
+        serializer = self.serializer_class(data=request.data)
+        serializer.is_valid(raise_exception=True) 
+        user = serializer.validated_data['user']
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+
+        return Response({'access_token': access_token})
     
-    if user is not None:
-        login(request, user)
-        return Response([{'ok':1}])
-    else:
-        return Response([{'ok':2}])
+class ExampleView(APIView):
+    authentication_classes = [SessionAuthentication, BasicAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response({'ok': 1})
